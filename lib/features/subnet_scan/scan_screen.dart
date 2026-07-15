@@ -12,13 +12,13 @@ class ScanScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
-  late final TextEditingController _subnetCtrl;
-  bool _subnetEdited = false;
+  late final TextEditingController _cidrCtrl;
+  bool _cidrEdited = false;
 
   @override
   void initState() {
     super.initState();
-    _subnetCtrl = TextEditingController();
+    _cidrCtrl = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _detectSubnet();
     });
@@ -26,20 +26,20 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
   @override
   void dispose() {
-    _subnetCtrl.dispose();
+    _cidrCtrl.dispose();
     super.dispose();
   }
 
   void _detectSubnet() async {
     await ref.read(scanProvider.notifier).detectSubnet();
-    if (!_subnetEdited) {
-      _subnetCtrl.text = ref.read(scanProvider).subnet;
+    if (!_cidrEdited) {
+      _cidrCtrl.text = ref.read(scanProvider).cidr;
     }
   }
 
   void _startScan() {
     FocusScope.of(context).unfocus();
-    ref.read(scanProvider.notifier).setSubnet(_subnetCtrl.text.trim());
+    ref.read(scanProvider.notifier).setCidr(_cidrCtrl.text.trim());
     ref.read(scanProvider.notifier).startScan();
   }
 
@@ -50,8 +50,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     final isScanning = state.status == ScanStatus.scanning;
 
     ref.listen(scanProvider, (prev, next) {
-      if (prev?.subnet != next.subnet && !_subnetEdited) {
-        _subnetCtrl.text = next.subnet;
+      if (prev?.cidr != next.cidr && !_cidrEdited) {
+        _cidrCtrl.text = next.cidr;
       }
     });
 
@@ -60,9 +60,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       body: Column(
         children: [
           _SubnetInput(
-            controller: _subnetCtrl,
+            controller: _cidrCtrl,
             isScanning: isScanning,
-            onEdited: () => _subnetEdited = true,
+            onEdited: () => _cidrEdited = true,
             onDetect: _detectSubnet,
             onScan: _startScan,
             onStop: () => ref.read(scanProvider.notifier).stopScan(),
@@ -150,7 +150,8 @@ class _SubnetInput extends StatelessWidget {
               enabled: !isScanning,
               onChanged: (_) => onEdited(),
               decoration: InputDecoration(
-                labelText: 'Subnet (e.g. 192.168.1)',
+                labelText: 'Network (CIDR)',
+                hintText: '192.168.1.0/24',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.wifi_find_rounded),
                   tooltip: 'Auto-detect',
@@ -288,8 +289,9 @@ class _HostList extends StatelessWidget {
         child: Text(
           state.status == ScanStatus.detecting
               ? 'Detecting network…'
-              : 'Set the subnet and tap Scan',
+              : 'Enter a network (e.g. 192.168.1.0/24) and tap Scan',
           style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4)),
+          textAlign: TextAlign.center,
         ),
       );
     }
