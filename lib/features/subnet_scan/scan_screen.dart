@@ -308,7 +308,7 @@ class _HostList extends StatelessWidget {
       children: [
         if (state.status == ScanStatus.done && state.hosts.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
             child: Row(
               children: [
                 Text(
@@ -316,21 +316,17 @@ class _HostList extends StatelessWidget {
                   style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6), fontSize: 12),
                 ),
                 const Spacer(),
-                TextButton.icon(
+                IconButton(
                   onPressed: onSaveBaseline,
-                  icon: const Icon(Icons.bookmark_add_rounded, size: 16),
-                  label: const Text('Save baseline'),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
+                  icon: const Icon(Icons.bookmark_add_rounded),
+                  tooltip: 'Save as baseline',
+                  color: cs.primary,
                 ),
-                TextButton.icon(
+                IconButton(
                   onPressed: onLoadBaseline,
-                  icon: const Icon(Icons.bookmark_rounded, size: 16),
-                  label: const Text('Load baseline'),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
+                  icon: const Icon(Icons.bookmark_rounded),
+                  tooltip: 'Load baseline',
+                  color: cs.primary,
                 ),
               ],
             ),

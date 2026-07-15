@@ -138,6 +138,7 @@ class _InputBar extends StatelessWidget {
                 ],
               ),
               const Spacer(),
+              const SizedBox(width: 16),
               if (isRunning)
                 OutlinedButton.icon(
                   onPressed: onStop,

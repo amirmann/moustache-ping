@@ -5,6 +5,8 @@ import 'speed_result.dart';
 
 enum SpeedTestStatus { idle, testingDownload, testingUpload, done, error }
 
+/// fast = built-in HTTP test (fast.com servers)
+/// ookla = opens speedtest.net in the browser (handled in the UI layer)
 enum SpeedProvider { fast, ookla }
 
 class SpeedTestState {
@@ -12,7 +14,6 @@ class SpeedTestState {
   final SpeedProvider provider;
   final double downloadMbps;
   final double uploadMbps;
-  final int latencyMs;
   final double progress;
   final String? error;
   final List<SpeedResult> history;
@@ -22,7 +23,6 @@ class SpeedTestState {
     this.provider = SpeedProvider.fast,
     this.downloadMbps = 0,
     this.uploadMbps = 0,
-    this.latencyMs = 0,
     this.progress = 0,
     this.error,
     this.history = const [],
@@ -33,7 +33,6 @@ class SpeedTestState {
     SpeedProvider? provider,
     double? downloadMbps,
     double? uploadMbps,
-    int? latencyMs,
     double? progress,
     String? error,
     List<SpeedResult>? history,
@@ -43,7 +42,6 @@ class SpeedTestState {
       provider: provider ?? this.provider,
       downloadMbps: downloadMbps ?? this.downloadMbps,
       uploadMbps: uploadMbps ?? this.uploadMbps,
-      latencyMs: latencyMs ?? this.latencyMs,
       progress: progress ?? this.progress,
       error: error,
       history: history ?? this.history,
@@ -63,7 +61,9 @@ class SpeedTestNotifier extends Notifier<SpeedTestState> {
     state = state.copyWith(provider: p);
   }
 
-  Future<void> startTest() async {
+  /// Only called for the fast.com built-in test.
+  /// For Ookla, the UI layer launches the browser directly.
+  Future<void> startFastTest() async {
     if (_speedTest.isTestInProgress()) return;
 
     state = SpeedTestState(
@@ -72,17 +72,15 @@ class SpeedTestNotifier extends Notifier<SpeedTestState> {
       history: state.history,
     );
 
-    final useFast = state.provider == SpeedProvider.fast;
-
     await _speedTest.startTesting(
-      useFastApi: useFast,
+      useFastApi: true,
       onCompleted: (TestResult download, TestResult upload) async {
         final saved = SpeedResult(
           downloadMbps: download.transferRate,
           uploadMbps: upload.transferRate,
           latencyMs: 0,
           timestamp: DateTime.now(),
-          provider: state.provider.name,
+          provider: 'fast.com',
         );
         await HiveService.saveSpeedResult(saved);
         state = state.copyWith(
