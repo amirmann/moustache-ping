@@ -141,7 +141,7 @@ class _InfoCard extends StatelessWidget {
             _InfoRow('IP address', info.ipAddress),
             _InfoRow('Subnet mask', info.subnetMask),
             _InfoRow('Gateway', info.gateway),
-            _InfoRow('DNS servers', info.dnsServers),
+            _DnsRow(info.dnsServers),
             if (info.label == 'WiFi') ...[
               _InfoRow('Broadcast', info.broadcast),
             ],
@@ -159,7 +159,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = connected ? Colors.greenAccent.shade400 : Colors.grey;
+    final color = connected ? Colors.green.shade600 : Colors.grey;
     return Chip(
       label: Text(
         connected ? 'Connected' : 'Inactive',
@@ -202,6 +202,58 @@ class _InfoRow extends StatelessWidget {
               display,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DnsRow extends StatelessWidget {
+  const _DnsRow(this.servers);
+  final List<String> servers;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              'DNS servers',
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.55),
+              ),
+            ),
+          ),
+          Expanded(
+            child: servers.isEmpty
+                ? const Text(
+                    '—',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final dns in servers)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            dns,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
         ],
       ),

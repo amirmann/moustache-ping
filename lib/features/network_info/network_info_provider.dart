@@ -16,7 +16,7 @@ class InterfaceInfo {
   final String? ipAddress;
   final String? subnetMask;
   final String? gateway;
-  final String? dnsServers;
+  final List<String> dnsServers;
   final String? ipv6;
   final String? broadcast;
   final String? networkType;
@@ -29,7 +29,7 @@ class InterfaceInfo {
     this.ipAddress,
     this.subnetMask,
     this.gateway,
-    this.dnsServers,
+    this.dnsServers = const [],
     this.ipv6,
     this.broadcast,
     this.networkType,

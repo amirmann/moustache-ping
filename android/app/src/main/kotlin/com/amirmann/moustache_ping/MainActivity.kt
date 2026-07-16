@@ -104,13 +104,19 @@ class MainActivity : FlutterActivity() {
 
         val dnsList = mutableListOf<String>()
         for (server in link.dnsServers) {
-            server.hostAddress?.trim()?.takeIf { it.isNotEmpty() }?.let { dnsList.add(it) }
+            val raw = server.hostAddress?.trim().orEmpty()
+            if (raw.isEmpty()) continue
+            // Strip IPv6 zone id (e.g. %wlan0) — not useful in the UI and wraps badly.
+            val cleaned = raw.substringBefore('%')
+            if (cleaned.isNotEmpty()) dnsList.add(cleaned)
         }
         val privateDns = link.privateDnsServerName?.trim()
-        if (!privateDns.isNullOrEmpty() && !dnsList.contains(privateDns)) {
-            dnsList.add("$privateDns (Private DNS)")
+        if (!privateDns.isNullOrEmpty() && dnsList.none { it == privateDns }) {
+            dnsList.add(privateDns)
         }
-        val dnsServers = dnsList.distinct().joinToString(", ")
+        // Prefer IPv4 first so the useful router DNS isn't buried under link-local IPv6.
+        dnsList.sortWith(compareBy({ it.contains(':') }, { it }))
+        val dnsServers = dnsList.distinct()
 
         return mapOf(
             "interfaceName" to link.interfaceName,

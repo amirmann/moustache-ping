@@ -7,7 +7,7 @@ class NativeInterfaceInfo {
     this.ipv6,
     this.subnetMask,
     this.gateway,
-    this.dnsServers,
+    this.dnsServers = const [],
     this.connected = false,
   });
 
@@ -16,7 +16,7 @@ class NativeInterfaceInfo {
   final String? ipv6;
   final String? subnetMask;
   final String? gateway;
-  final String? dnsServers;
+  final List<String> dnsServers;
   final bool connected;
 
   factory NativeInterfaceInfo.fromMap(Map<dynamic, dynamic>? map) {
@@ -27,9 +27,33 @@ class NativeInterfaceInfo {
       ipv6: map['ipv6'] as String?,
       subnetMask: map['subnetMask'] as String?,
       gateway: map['gateway'] as String?,
-      dnsServers: map['dnsServers'] as String?,
+      dnsServers: _parseDns(map['dnsServers']),
       connected: map['connected'] == true,
     );
+  }
+
+  static List<String> _parseDns(dynamic value) {
+    if (value is List) {
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return value
+          .split(',')
+          .map((e) => e.trim().substringBefore('%'))
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+}
+
+extension on String {
+  String substringBefore(String sep) {
+    final i = indexOf(sep);
+    return i < 0 ? this : substring(0, i);
   }
 }
 

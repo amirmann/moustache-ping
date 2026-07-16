@@ -1,8 +1,105 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/moustache_header.dart';
 import 'scan_provider.dart';
 import 'scan_snapshot.dart';
+
+Future<void> _showHostCopySheet(BuildContext context, ScanResult host) async {
+  final hasHostname = host.hostname?.isNotEmpty == true;
+  final hasMac = host.mac?.isNotEmpty == true;
+  final cs = Theme.of(context).colorScheme;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  hasHostname ? '${host.hostname}\n${host.ip}' : host.ip,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cs.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ),
+            if (hasHostname)
+              ListTile(
+                leading: const Icon(Icons.badge_outlined),
+                title: const Text('Copy hostname'),
+                subtitle: Text(host.hostname!, style: const TextStyle(fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await Clipboard.setData(ClipboardData(text: host.hostname!));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Hostname copied')),
+                    );
+                  }
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.lan_outlined),
+              title: const Text('Copy IP'),
+              subtitle: Text(host.ip, style: const TextStyle(fontSize: 12)),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await Clipboard.setData(ClipboardData(text: host.ip));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('IP copied')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              enabled: hasMac,
+              leading: Icon(
+                Icons.memory_rounded,
+                color: hasMac ? null : cs.onSurface.withValues(alpha: 0.35),
+              ),
+              title: Text(
+                'Copy MAC',
+                style: TextStyle(
+                  color: hasMac ? null : cs.onSurface.withValues(alpha: 0.35),
+                ),
+              ),
+              subtitle: Text(
+                hasMac ? host.mac! : 'Not available',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: hasMac
+                      ? null
+                      : cs.onSurface.withValues(alpha: 0.35),
+                ),
+              ),
+              onTap: hasMac
+                  ? () async {
+                      Navigator.pop(sheetContext);
+                      await Clipboard.setData(ClipboardData(text: host.mac!));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('MAC copied')),
+                        );
+                      }
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    },
+  );
+}
 
 class ScanScreen extends ConsumerStatefulWidget {
   const ScanScreen({super.key});
@@ -307,40 +404,44 @@ class _DiffRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = added ? Colors.greenAccent[400]! : Colors.redAccent[400]!;
     final hasName = host.hostname?.isNotEmpty == true;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(
-              added ? Icons.add_circle_rounded : Icons.remove_circle_rounded,
-              size: 14,
-              color: color,
+    return InkWell(
+      onLongPress: () => _showHostCopySheet(context, host),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                added ? Icons.add_circle_rounded : Icons.remove_circle_rounded,
+                size: 14,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hasName ? host.hostname! : host.ip,
-                  style: TextStyle(color: color, fontSize: 13),
-                ),
-                if (hasName)
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    host.ip,
-                    style: TextStyle(
-                      color: color.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
+                    hasName ? host.hostname! : host.ip,
+                    style: TextStyle(color: color, fontSize: 13),
                   ),
-              ],
+                  if (hasName)
+                    Text(
+                      host.ip,
+                      style: TextStyle(
+                        color: color.withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -428,6 +529,7 @@ class _HostList extends StatelessWidget {
                         state.diff?.added.any((h) => h.ip == host.ip) ?? false;
                     return ListTile(
                       dense: true,
+                      onLongPress: () => _showHostCopySheet(context, host),
                       leading: Icon(
                         Icons.devices_rounded,
                         size: 18,

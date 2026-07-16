@@ -10,7 +10,8 @@ enum ScanStatus { idle, detecting, scanning, done, error }
 class ScanResult {
   final String ip;
   final String? hostname;
-  ScanResult(this.ip, {this.hostname});
+  final String? mac;
+  ScanResult(this.ip, {this.hostname, this.mac});
 }
 
 class ScanDiff {
@@ -161,15 +162,30 @@ class ScanNotifier extends Notifier<ScanState> {
             (host) {
               final ip = host.internetAddress.address;
               final index = hosts.length;
-              // Show IP immediately, then fill in hostname when reverse DNS returns.
+              // Show IP immediately, then fill in hostname/MAC when available.
               hosts.add(ScanResult(ip));
               state = state.copyWith(hosts: List.from(hosts));
               _resolveHostname(host, ip).then((name) {
                 if (name == null || !ref.mounted) return;
                 if (index < hosts.length && hosts[index].ip == ip) {
-                  hosts[index] = ScanResult(ip, hostname: name);
+                  hosts[index] = ScanResult(
+                    ip,
+                    hostname: name,
+                    mac: hosts[index].mac,
+                  );
                 }
-                _applyHostname(ip, name);
+                _patchHost(ip, hostname: name);
+              });
+              _resolveMac(host).then((mac) {
+                if (mac == null || !ref.mounted) return;
+                if (index < hosts.length && hosts[index].ip == ip) {
+                  hosts[index] = ScanResult(
+                    ip,
+                    hostname: hosts[index].hostname,
+                    mac: mac,
+                  );
+                }
+                _patchHost(ip, mac: mac);
               });
             },
             onDone: () {
@@ -250,14 +266,19 @@ class ScanNotifier extends Notifier<ScanState> {
     return null;
   }
 
-  /// Keep hostnames in the live host list, previous-scan snapshot, and diff.
-  void _applyHostname(String ip, String name) {
+  /// Keep hostname/MAC in the live host list, previous-scan snapshot, and diff.
+  void _patchHost(String ip, {String? hostname, String? mac}) {
     List<ScanResult>? updateList(List<ScanResult>? list) {
       if (list == null) return null;
       final i = list.indexWhere((h) => h.ip == ip);
       if (i < 0) return null;
+      final existing = list[i];
       final updated = List<ScanResult>.from(list);
-      updated[i] = ScanResult(ip, hostname: name);
+      updated[i] = ScanResult(
+        ip,
+        hostname: hostname ?? existing.hostname,
+        mac: mac ?? existing.mac,
+      );
       return updated;
     }
 
@@ -294,6 +315,24 @@ class ScanNotifier extends Notifier<ScanState> {
 
       final device = await host.deviceName;
       return _cleanHostname(device, ip);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// MAC via ARP — typically unavailable on Android/iOS.
+  Future<String?> _resolveMac(ActiveHost host) async {
+    try {
+      final mac = await host.getMacAddress();
+      if (mac == null) return null;
+      final cleaned = mac.trim().toLowerCase();
+      if (cleaned.isEmpty ||
+          cleaned == ARPData.nullMacAddress ||
+          cleaned == '(incomplete)' ||
+          cleaned == '00:00:00:00:00:00') {
+        return null;
+      }
+      return mac.trim();
     } catch (_) {
       return null;
     }
