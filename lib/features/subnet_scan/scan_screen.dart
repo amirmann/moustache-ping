@@ -417,8 +417,8 @@ class _DiffRow extends StatelessWidget {
                       style: TextStyle(
                         // Secondary line uses onSurface for readability,
                         // not a washed-out tint of the accent color.
-                        color: cs.onSurface.withValues(alpha: 0.65),
-                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.75),
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
