@@ -1,6 +1,36 @@
 # Moustache Ping 🥸
 
-A network utility Android app built with Flutter.
+A network utility Android app built with Flutter — ping, subnet scan with before/after diff, speed test, and network info.
+
+## Screenshots
+
+Demo data only (`DemoNet`, `192.168.1.x`) — not from a real network.
+
+### Light theme (default)
+
+| Ping | Scan | Speed |
+|:---:|:---:|:---:|
+| ![Ping](docs/screenshots/light/01-ping.png) | ![Scan](docs/screenshots/light/02-scan.png) | ![Speed](docs/screenshots/light/03-speed.png) |
+
+| Info | Settings |
+|:---:|:---:|
+| ![Info](docs/screenshots/light/04-info.png) | ![Settings](docs/screenshots/light/05-settings.png) |
+
+### Dark theme
+
+| Ping | Scan | Speed |
+|:---:|:---:|:---:|
+| ![Ping](docs/screenshots/dark/01-ping.png) | ![Scan](docs/screenshots/dark/02-scan.png) | ![Speed](docs/screenshots/dark/03-speed.png) |
+
+| Info | Settings |
+|:---:|:---:|
+| ![Info](docs/screenshots/dark/04-info.png) | ![Settings](docs/screenshots/dark/05-settings.png) |
+
+Regenerate screenshots (fictional demo data):
+
+```bash
+./tool/capture_screenshots.sh
+```
 
 ## Features
 
@@ -11,34 +41,35 @@ A network utility Android app built with Flutter.
 - Packet loss and average RTT summary
 
 ### 2. Subnet Scanner
-- Auto-detects your current WiFi subnet (e.g. `192.168.1`)
-- Editable subnet field — override with any subnet you like
-- Concurrent ICMP scan of all 254 hosts
-- Reverse-DNS hostname discovery (shown when the network provides PTR records)
-- **Before/After diff**: save a scan as a baseline, plug or unplug a device, rescan, and see exactly which devices were added or removed (highlighted green/red)
-- Persistent baseline history stored locally
+- Auto-detects your current WiFi subnet as CIDR (e.g. `192.168.1.0/24`)
+- Concurrent ICMP scan with reverse-DNS hostnames when available
+- Auto-diff against the previous scan (added / removed hosts)
+- Long-press a host to copy hostname or IP
+- Optional saved baselines with history
 
 ### 3. Speed Test
 - In-app speed test via **fast.com** servers
 - Animated speed dial showing live download/upload progress
-- Results: Download Mbps, Upload Mbps
 - History of past tests with timestamp
 
 ### 4. Network Info
-- WiFi and Cellular sections with connection status
-- WiFi: SSID, BSSID, IP, subnet mask, gateway, DNS, broadcast, IPv6
-- Cellular: network type, IP (when on mobile data), DNS
-- Refresh button; location permission requested for SSID on Android 10+
+- Separate WiFi and Cellular cards
+- IP, subnet, gateway, DNS (one per line), IPv6, broadcast
+- Location permission requested for SSID on Android 10+
+
+### 5. Settings
+- Light theme by default
+- Dark theme toggle (persisted)
 
 ## Tech Stack
 
 | Concern | Package |
 |---|---|
-| UI / Framework | Flutter 3.44+ (Material 3, dark theme) |
+| UI / Framework | Flutter 3.44+ (Material 3, light + dark) |
 | State management | Riverpod 3.x (`Notifier` + `NotifierProvider`) |
 | ICMP Ping | `dart_ping` 9.x |
 | Subnet scan | `network_tools` + `network_tools_flutter` |
-| WiFi info | `network_info_plus` |
+| WiFi info | `network_info_plus` + native Android `LinkProperties` |
 | Speed test | `flutter_internet_speed_test_pro` |
 | Local storage | `hive_ce` + `hive_ce_flutter` |
 
@@ -57,14 +88,16 @@ Location permission is required on Android 10+ to read the WiFi SSID for subnet 
 # Prerequisites: Flutter 3.44+, Android SDK, Java 17+
 flutter pub get
 dart run build_runner build
-flutter build apk --release
-# APK: build/app/outputs/flutter-apk/app-release.apk
+
+# arm64-only release APK (default — covers modern phones)
+flutter build apk --release --target-platform android-arm64
+# APK: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
 
 ## Versioning
 
 The version is tracked in `pubspec.yaml` (`version: X.Y.Z+build`).  
-Each release on GitHub is tagged `vX.Y.Z` with an auto-generated changelog and the release APK attached.
+Each release on GitHub is tagged `vX.Y.Z` with the arm64 APK attached.
 
 ## License
 

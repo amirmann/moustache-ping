@@ -7,7 +7,6 @@ import 'scan_snapshot.dart';
 
 Future<void> _showHostCopySheet(BuildContext context, ScanResult host) async {
   final hasHostname = host.hostname?.isNotEmpty == true;
-  final hasMac = host.mac?.isNotEmpty == true;
   final cs = Theme.of(context).colorScheme;
 
   await showModalBottomSheet<void>(
@@ -59,39 +58,6 @@ Future<void> _showHostCopySheet(BuildContext context, ScanResult host) async {
                   );
                 }
               },
-            ),
-            ListTile(
-              enabled: hasMac,
-              leading: Icon(
-                Icons.memory_rounded,
-                color: hasMac ? null : cs.onSurface.withValues(alpha: 0.35),
-              ),
-              title: Text(
-                'Copy MAC',
-                style: TextStyle(
-                  color: hasMac ? null : cs.onSurface.withValues(alpha: 0.35),
-                ),
-              ),
-              subtitle: Text(
-                hasMac ? host.mac! : 'Not available',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: hasMac
-                      ? null
-                      : cs.onSurface.withValues(alpha: 0.35),
-                ),
-              ),
-              onTap: hasMac
-                  ? () async {
-                      Navigator.pop(sheetContext);
-                      await Clipboard.setData(ClipboardData(text: host.mac!));
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('MAC copied')),
-                        );
-                      }
-                    }
-                  : null,
             ),
             const SizedBox(height: 8),
           ],
@@ -333,6 +299,8 @@ class _DiffCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final addedColor = _diffColor(context, added: true);
+    final removedColor = _diffColor(context, added: false);
     if (diff.added.isEmpty && diff.removed.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -369,7 +337,7 @@ class _DiffCard extends StatelessWidget {
               Text(
                 'Added (${diff.added.length})',
                 style: TextStyle(
-                  color: Colors.greenAccent.shade400,
+                  color: addedColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -381,7 +349,7 @@ class _DiffCard extends StatelessWidget {
               Text(
                 'Removed (${diff.removed.length})',
                 style: TextStyle(
-                  color: Colors.redAccent.shade400,
+                  color: removedColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -395,6 +363,15 @@ class _DiffCard extends StatelessWidget {
   }
 }
 
+/// High-contrast status colors for light and dark themes.
+Color _diffColor(BuildContext context, {required bool added}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  if (added) {
+    return isDark ? const Color(0xFF69F0AE) : const Color(0xFF1B7A3D);
+  }
+  return isDark ? const Color(0xFFFF8A80) : const Color(0xFFC62828);
+}
+
 class _DiffRow extends StatelessWidget {
   const _DiffRow({required this.host, required this.added});
   final ScanResult host;
@@ -402,7 +379,8 @@ class _DiffRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = added ? Colors.greenAccent[400]! : Colors.redAccent[400]!;
+    final cs = Theme.of(context).colorScheme;
+    final color = _diffColor(context, added: added);
     final hasName = host.hostname?.isNotEmpty == true;
     return InkWell(
       onLongPress: () => _showHostCopySheet(context, host),
@@ -427,14 +405,21 @@ class _DiffRow extends StatelessWidget {
                 children: [
                   Text(
                     hasName ? host.hostname! : host.ip,
-                    style: TextStyle(color: color, fontSize: 13),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   if (hasName)
                     Text(
                       host.ip,
                       style: TextStyle(
-                        color: color.withValues(alpha: 0.7),
-                        fontSize: 11,
+                        // Secondary line uses onSurface for readability,
+                        // not a washed-out tint of the accent color.
+                        color: cs.onSurface.withValues(alpha: 0.65),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                 ],
@@ -533,7 +518,9 @@ class _HostList extends StatelessWidget {
                       leading: Icon(
                         Icons.devices_rounded,
                         size: 18,
-                        color: isNew ? Colors.greenAccent[400] : cs.primary,
+                        color: isNew
+                            ? _diffColor(context, added: true)
+                            : cs.primary,
                       ),
                       title: Text(
                         host.hostname?.isNotEmpty == true ? host.hostname! : host.ip,
@@ -544,8 +531,15 @@ class _HostList extends StatelessWidget {
                           : null,
                       trailing: isNew
                           ? Chip(
-                              label: const Text('NEW', style: TextStyle(fontSize: 10)),
-                              backgroundColor: Colors.greenAccent[700],
+                              label: const Text('NEW'),
+                              backgroundColor:
+                                  _diffColor(context, added: true)
+                                      .withValues(alpha: 0.2),
+                              labelStyle: TextStyle(
+                                fontSize: 10,
+                                color: _diffColor(context, added: true),
+                                fontWeight: FontWeight.w700,
+                              ),
                               padding: EdgeInsets.zero,
                             )
                           : null,

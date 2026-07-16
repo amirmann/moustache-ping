@@ -42,7 +42,10 @@ class SpeedTestState {
 }
 
 class SpeedTestNotifier extends Notifier<SpeedTestState> {
-  final _speedTest = FlutterInternetSpeedTest();
+  FlutterInternetSpeedTest? _speedTest;
+
+  FlutterInternetSpeedTest get _client =>
+      _speedTest ??= FlutterInternetSpeedTest();
 
   @override
   SpeedTestState build() {
@@ -50,14 +53,14 @@ class SpeedTestNotifier extends Notifier<SpeedTestState> {
   }
 
   Future<void> startTest() async {
-    if (_speedTest.isTestInProgress()) return;
+    if (_client.isTestInProgress()) return;
 
     state = SpeedTestState(
       status: SpeedTestStatus.testingDownload,
       history: state.history,
     );
 
-    await _speedTest.startTesting(
+    await _client.startTesting(
       useFastApi: true,
       onCompleted: (TestResult download, TestResult upload) async {
         final saved = SpeedResult(
@@ -112,7 +115,7 @@ class SpeedTestNotifier extends Notifier<SpeedTestState> {
   }
 
   Future<void> cancel() async {
-    await _speedTest.cancelTest();
+    await _client.cancelTest();
     state = state.copyWith(status: SpeedTestStatus.idle);
   }
 

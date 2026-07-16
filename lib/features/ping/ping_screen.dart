@@ -127,18 +127,24 @@ class _InputBar extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Row(
-                children: [
-                  Switch(
-                    value: continuous,
-                    onChanged: isRunning ? null : onContinuousChanged,
-                  ),
-                  const SizedBox(width: 4),
-                  const Text('Continuous'),
-                ],
+              Flexible(
+                child: Row(
+                  children: [
+                    Switch(
+                      value: continuous,
+                      onChanged: isRunning ? null : onContinuousChanged,
+                    ),
+                    const SizedBox(width: 4),
+                    const Flexible(
+                      child: Text(
+                        'Continuous',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               if (isRunning)
                 OutlinedButton.icon(
                   onPressed: onStop,

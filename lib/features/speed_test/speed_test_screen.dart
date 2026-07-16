@@ -268,8 +268,10 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 8,
       children: [
         if (isRunning)
           OutlinedButton.icon(
@@ -283,14 +285,12 @@ class _Controls extends StatelessWidget {
             icon: const Icon(Icons.speed_rounded),
             label: const Text('Start Test'),
           ),
-        if (isDone) ...[
-          const SizedBox(width: 12),
+        if (isDone)
           OutlinedButton.icon(
             onPressed: onReset,
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Again'),
           ),
-        ],
       ],
     );
   }
