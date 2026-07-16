@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:network_info_plus/network_info_plus.dart';
@@ -109,7 +111,7 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
     try {
       final locationStatus = await _ensureLocationPermission();
       final connectivity = await _connectivity.checkConnectivity();
-      final dns = await _readDnsServers();
+      final androidInfo = await _readAndroidNetworkInfo();
 
       final wifiConnected = connectivity == ConnectivityResult.wifi ||
           connectivity == ConnectivityResult.ethernet;
@@ -117,13 +119,13 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
 
       final wifi = await _loadWifiInfo(
         connected: wifiConnected,
-        dns: dns,
+        androidInfo: androidInfo,
         locationGranted: locationStatus.granted,
       );
 
       final cellular = await _loadCellularInfo(
         connected: cellularConnected,
-        dns: dns,
+        androidInfo: androidInfo,
         connectivity: connectivity,
       );
 
@@ -160,42 +162,43 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
 
   Future<InterfaceInfo> _loadWifiInfo({
     required bool connected,
-    required String? dns,
+    required AndroidNetworkInfo androidInfo,
     required bool locationGranted,
   }) async {
     final ssidRaw = await _networkInfo.getWifiName();
     final ssid = _cleanQuoted(ssidRaw);
+    final wifiSnapshot = androidInfo.wifi;
 
     return InterfaceInfo(
       label: 'WiFi',
-      connected: connected,
-      networkType: connected ? 'WiFi' : 'Not connected',
+      connected: connected || wifiSnapshot != null,
+      networkType: connected || wifiSnapshot != null ? 'WiFi' : 'Not connected',
       ssid: locationGranted ? ssid : 'Permission required',
       bssid: locationGranted ? await _networkInfo.getWifiBSSID() : 'Permission required',
-      ipAddress: await _networkInfo.getWifiIP(),
-      subnetMask: await _networkInfo.getWifiSubmask(),
-      gateway: await _networkInfo.getWifiGatewayIP(),
-      broadcast: await _networkInfo.getWifiBroadcast(),
-      ipv6: await _networkInfo.getWifiIPv6(),
-      dnsServers: dns,
+      ipAddress: await _networkInfo.getWifiIP() ?? wifiSnapshot?.ipv4,
+      subnetMask: await _networkInfo.getWifiSubmask() ?? wifiSnapshot?.subnetMask,
+      gateway: await _networkInfo.getWifiGatewayIP() ?? wifiSnapshot?.gateway,
+      broadcast: await _networkInfo.getWifiBroadcast() ?? wifiSnapshot?.broadcast,
+      ipv6: await _networkInfo.getWifiIPv6() ?? wifiSnapshot?.ipv6,
+      dnsServers: _joinDns(wifiSnapshot?.dnsServers ?? androidInfo.fallbackDns),
     );
   }
 
   Future<InterfaceInfo> _loadCellularInfo({
     required bool connected,
-    required String? dns,
+    required AndroidNetworkInfo androidInfo,
     required ConnectivityResult connectivity,
   }) async {
-    final cellularIp = await _findCellularIp();
+    final cellularSnapshot = androidInfo.cellular;
 
     return InterfaceInfo(
       label: 'Cellular',
-      connected: connected,
-      networkType: _connectivityLabel(connectivity),
-      ipAddress: cellularIp,
-      subnetMask: connected ? 'Not available' : null,
-      gateway: connected ? 'Not available' : null,
-      dnsServers: dns,
+      connected: connected || cellularSnapshot != null,
+      networkType: cellularSnapshot?.networkType ?? _connectivityLabel(connectivity),
+      ipAddress: cellularSnapshot?.ipv4,
+      subnetMask: cellularSnapshot?.subnetMask,
+      gateway: cellularSnapshot?.gateway,
+      dnsServers: _joinDns(cellularSnapshot?.dnsServers ?? androidInfo.fallbackDns),
     );
   }
 
@@ -211,38 +214,6 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
     };
   }
 
-  Future<String?> _findCellularIp() async {
-    try {
-      final interfaces = await NetworkInterface.list(
-        includeLinkLocal: false,
-        type: InternetAddressType.IPv4,
-      );
-
-      for (final iface in interfaces) {
-        final name = iface.name.toLowerCase();
-        if (_isWifiInterface(name)) continue;
-        if (!_isCellularInterface(name)) continue;
-
-        for (final addr in iface.addresses) {
-          if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
-            return addr.address;
-          }
-        }
-      }
-
-      // Fallback: any non-wifi IPv4 when on mobile data.
-      for (final iface in interfaces) {
-        if (_isWifiInterface(iface.name.toLowerCase())) continue;
-        for (final addr in iface.addresses) {
-          if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
-            return addr.address;
-          }
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
-
   bool _isWifiInterface(String name) =>
       name.startsWith('wlan') || name.startsWith('wifi') || name == 'en0';
 
@@ -254,22 +225,153 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
       name.startsWith('rmnet') ||
       name.contains('cell');
 
-  Future<String?> _readDnsServers() async {
-    if (!Platform.isAndroid) return 'Not available';
+  Future<AndroidNetworkInfo> _readAndroidNetworkInfo() async {
+    if (!Platform.isAndroid) return const AndroidNetworkInfo();
 
-    final servers = <String>[];
-    for (var i = 1; i <= 4; i++) {
-      try {
-        final result = await Process.run('getprop', ['net.dns$i']);
-        final value = (result.stdout as String).trim();
-        if (value.isNotEmpty && value != 'null') {
-          servers.add(value);
+    final interfaces = <String, AndroidInterfaceSnapshot>{};
+
+    try {
+      final addrResult = await Process.run('ip', ['-o', 'addr', 'show']);
+      final lines = const LineSplitter().convert('${addrResult.stdout}');
+      for (final line in lines) {
+        final ipv4Match = RegExp(r'^\d+:\s+(\S+)\s+inet\s+(\d+\.\d+\.\d+\.\d+)/(\d+)(?:\s+brd\s+(\d+\.\d+\.\d+\.\d+))?')
+            .firstMatch(line);
+        if (ipv4Match != null) {
+          final name = ipv4Match.group(1)!;
+          interfaces[name] = (interfaces[name] ?? AndroidInterfaceSnapshot(name: name)).copyWith(
+            ipv4: ipv4Match.group(2),
+            subnetMask: _prefixToMask(int.parse(ipv4Match.group(3)!)),
+            broadcast: ipv4Match.group(4),
+          );
+          continue;
         }
-      } catch (_) {}
+
+        final ipv6Match =
+            RegExp(r'^\d+:\s+(\S+)\s+inet6\s+([0-9a-fA-F:]+)/\d+').firstMatch(line);
+        if (ipv6Match != null) {
+          final name = ipv6Match.group(1)!;
+          interfaces[name] = (interfaces[name] ?? AndroidInterfaceSnapshot(name: name)).copyWith(
+            ipv6: ipv6Match.group(2),
+          );
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final routeResult = await Process.run('ip', ['route', 'show']);
+      final lines = const LineSplitter().convert('${routeResult.stdout}');
+      for (final line in lines) {
+        final defaultMatch =
+            RegExp(r'^default via (\d+\.\d+\.\d+\.\d+) dev (\S+)').firstMatch(line);
+        if (defaultMatch != null) {
+          final gateway = defaultMatch.group(1)!;
+          final name = defaultMatch.group(2)!;
+          interfaces[name] = (interfaces[name] ?? AndroidInterfaceSnapshot(name: name)).copyWith(
+            gateway: gateway,
+          );
+        }
+      }
+    } catch (_) {}
+
+    final dnsByInterface = await _readDnsByInterface();
+    final fallbackDns = <String>{};
+    for (final entry in dnsByInterface.entries) {
+      if (entry.key == '_fallback') {
+        fallbackDns.addAll(entry.value);
+        continue;
+      }
+      final existing = interfaces[entry.key];
+      if (existing != null) {
+        interfaces[entry.key] = existing.copyWith(dnsServers: entry.value);
+      }
     }
 
-    if (servers.isEmpty) return 'Not available';
-    return servers.join(', ');
+    AndroidInterfaceSnapshot? wifi;
+    AndroidInterfaceSnapshot? cellular;
+    for (final entry in interfaces.entries) {
+      final lower = entry.key.toLowerCase();
+      if (wifi == null && _isWifiInterface(lower)) {
+        wifi = entry.value.copyWith(networkType: 'WiFi');
+      }
+      if (cellular == null && _isCellularInterface(lower)) {
+        cellular = entry.value.copyWith(networkType: 'Mobile');
+      }
+    }
+
+    // Fallback: when mobile is active, take the first non-wifi non-loopback IPv4 interface.
+    cellular ??= interfaces.values.where((iface) {
+      final lower = iface.name.toLowerCase();
+      return !_isWifiInterface(lower) &&
+          lower != 'lo' &&
+          (iface.ipv4?.isNotEmpty ?? false);
+    }).cast<AndroidInterfaceSnapshot?>().firstWhere(
+          (iface) => iface != null,
+          orElse: () => null,
+        );
+
+    return AndroidNetworkInfo(
+      wifi: wifi,
+      cellular: cellular,
+      fallbackDns: fallbackDns.toList(),
+    );
+  }
+
+  Future<Map<String, List<String>>> _readDnsByInterface() async {
+    final result = <String, Set<String>>{};
+
+    try {
+      final propResult = await Process.run('getprop', []);
+      final lines = const LineSplitter().convert('${propResult.stdout}');
+      for (final line in lines) {
+        final match = RegExp(r'^\[([^\]]+)\]: \[([^\]]*)\]$').firstMatch(line.trim());
+        if (match == null) continue;
+        final key = match.group(1)!;
+        final value = match.group(2)!.trim();
+        if (!_looksLikeIp(value)) continue;
+
+        if (key.startsWith('net.dns')) {
+          (result['_fallback'] ??= <String>{}).add(value);
+          continue;
+        }
+
+        final ifaceMatch = RegExp(r'net\.([A-Za-z0-9_.-]+)\.dns\d+$').firstMatch(key);
+        if (ifaceMatch != null) {
+          final iface = ifaceMatch.group(1)!;
+          (result[iface] ??= <String>{}).add(value);
+        }
+      }
+    } catch (_) {}
+
+    return {
+      for (final entry in result.entries) entry.key: entry.value.toList(),
+    };
+  }
+
+  String? _joinDns(List<String> servers) {
+    if (servers.isEmpty) return null;
+    final unique = <String>[];
+    for (final server in servers) {
+      if (server.isEmpty || unique.contains(server)) continue;
+      unique.add(server);
+    }
+    return unique.isEmpty ? null : unique.join(', ');
+  }
+
+  bool _looksLikeIp(String value) =>
+      RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(value) ||
+      value.contains(':');
+
+  String _prefixToMask(int prefix) {
+    final mask = <int>[];
+    var remaining = prefix;
+    for (var i = 0; i < 4; i++) {
+      final bits = remaining >= 8 ? 8 : remaining;
+      final octet = bits == 0 ? 0 : (0xff << (8 - bits)) & 0xff;
+      mask.add(octet);
+      remaining -= bits;
+      if (remaining < 0) remaining = 0;
+    }
+    return mask.join('.');
   }
 
   String? _cleanQuoted(String? value) {
@@ -287,3 +389,59 @@ final deviceNetworkInfoProvider =
     NotifierProvider.autoDispose<DeviceNetworkInfoNotifier, DeviceNetworkInfoState>(
   DeviceNetworkInfoNotifier.new,
 );
+
+class AndroidNetworkInfo {
+  final AndroidInterfaceSnapshot? wifi;
+  final AndroidInterfaceSnapshot? cellular;
+  final List<String> fallbackDns;
+
+  const AndroidNetworkInfo({
+    this.wifi,
+    this.cellular,
+    this.fallbackDns = const [],
+  });
+}
+
+class AndroidInterfaceSnapshot {
+  final String name;
+  final String? ipv4;
+  final String? subnetMask;
+  final String? gateway;
+  final List<String> dnsServers;
+  final String? ipv6;
+  final String? broadcast;
+  final String? networkType;
+
+  const AndroidInterfaceSnapshot({
+    required this.name,
+    this.ipv4,
+    this.subnetMask,
+    this.gateway,
+    this.dnsServers = const [],
+    this.ipv6,
+    this.broadcast,
+    this.networkType,
+  });
+
+  AndroidInterfaceSnapshot copyWith({
+    String? name,
+    String? ipv4,
+    String? subnetMask,
+    String? gateway,
+    List<String>? dnsServers,
+    String? ipv6,
+    String? broadcast,
+    String? networkType,
+  }) {
+    return AndroidInterfaceSnapshot(
+      name: name ?? this.name,
+      ipv4: ipv4 ?? this.ipv4,
+      subnetMask: subnetMask ?? this.subnetMask,
+      gateway: gateway ?? this.gateway,
+      dnsServers: dnsServers ?? this.dnsServers,
+      ipv6: ipv6 ?? this.ipv6,
+      broadcast: broadcast ?? this.broadcast,
+      networkType: networkType ?? this.networkType,
+    );
+  }
+}
