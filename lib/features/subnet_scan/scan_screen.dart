@@ -78,7 +78,31 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               baseline: state.baseline!,
               onClear: () => ref.read(scanProvider.notifier).clearBaseline(),
             ),
-          if (state.diff != null) _DiffCard(diff: state.diff!),
+          if (state.status == ScanStatus.done &&
+              state.diff == null &&
+              state.hosts.isNotEmpty &&
+              state.previousHosts != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.compare_arrows_rounded,
+                      size: 16, color: cs.onSurface.withValues(alpha: 0.6)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Scan again to compare with this result',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (state.diff != null)
+            _DiffCard(diff: state.diff!, source: state.diffSource),
           Expanded(
             child: _HostList(
               state: state,
@@ -205,8 +229,9 @@ class _BaselineBanner extends StatelessWidget {
 }
 
 class _DiffCard extends StatelessWidget {
-  const _DiffCard({required this.diff});
+  const _DiffCard({required this.diff, this.source});
   final ScanDiff diff;
+  final String? source;
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +243,13 @@ class _DiffCard extends StatelessWidget {
           children: [
             Icon(Icons.check_circle_rounded, size: 16, color: cs.primary),
             const SizedBox(width: 6),
-            const Text('No changes since baseline'),
+            Expanded(
+              child: Text(
+                source == null
+                    ? 'No changes since last scan'
+                    : 'No changes since $source',
+              ),
+            ),
           ],
         ),
       );
@@ -230,13 +261,36 @@ class _DiffCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Changes since baseline',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 6),
-            if (diff.added.isNotEmpty)
+            Text(
+              source == null
+                  ? 'Changes since last scan'
+                  : 'Changes since $source',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            if (diff.added.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Added (${diff.added.length})',
+                style: TextStyle(
+                  color: Colors.greenAccent.shade400,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               ...diff.added.map((ip) => _DiffRow(ip: ip, added: true)),
-            if (diff.removed.isNotEmpty)
+            ],
+            if (diff.removed.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Removed (${diff.removed.length})',
+                style: TextStyle(
+                  color: Colors.redAccent.shade400,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               ...diff.removed.map((ip) => _DiffRow(ip: ip, added: false)),
+            ],
           ],
         ),
       ),

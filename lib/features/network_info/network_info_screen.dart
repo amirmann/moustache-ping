@@ -144,8 +144,8 @@ class _InfoCard extends StatelessWidget {
             _InfoRow('DNS servers', info.dnsServers),
             if (info.label == 'WiFi') ...[
               _InfoRow('Broadcast', info.broadcast),
-              _InfoRow('IPv6', info.ipv6),
             ],
+            _InfoRow('IPv6', info.ipv6),
           ],
         ),
       ),

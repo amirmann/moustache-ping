@@ -49,9 +49,11 @@ class CidrNetwork {
 
 class ScanState {
   final ScanStatus status;
-  final String cidr;          // user-visible CIDR string, e.g. "192.168.1.0/24"
+  final String cidr;
   final List<ScanResult> hosts;
   final ScanSnapshot? baseline;
+  final List<String>? previousHosts;
+  final String? diffSource;
   final ScanDiff? diff;
   final double progress;
   final String? error;
@@ -61,6 +63,8 @@ class ScanState {
     this.cidr = '',
     this.hosts = const [],
     this.baseline,
+    this.previousHosts,
+    this.diffSource,
     this.diff,
     this.progress = 0,
     this.error,
@@ -71,17 +75,23 @@ class ScanState {
     String? cidr,
     List<ScanResult>? hosts,
     ScanSnapshot? baseline,
+    List<String>? previousHosts,
+    String? diffSource,
     ScanDiff? diff,
     double? progress,
     String? error,
     bool clearDiff = false,
     bool clearBaseline = false,
+    bool clearPreviousHosts = false,
   }) {
     return ScanState(
       status: status ?? this.status,
       cidr: cidr ?? this.cidr,
       hosts: hosts ?? this.hosts,
       baseline: clearBaseline ? null : (baseline ?? this.baseline),
+      previousHosts:
+          clearPreviousHosts ? null : (previousHosts ?? this.previousHosts),
+      diffSource: clearDiff ? null : (diffSource ?? this.diffSource),
       diff: clearDiff ? null : (diff ?? this.diff),
       progress: progress ?? this.progress,
       error: error,
@@ -163,12 +173,18 @@ class ScanNotifier extends Notifier<ScanState> {
               });
             },
             onDone: () {
-              final diff = _computeDiff(hosts, state.baseline);
+              final currentIPs = hosts.map((h) => h.ip).toList();
+              final comparison = _comparisonHosts();
+              final diff = comparison == null
+                  ? null
+                  : _computeDiff(currentIPs, comparison.hosts);
               state = state.copyWith(
                 status: ScanStatus.done,
                 hosts: List.from(hosts),
                 progress: 1.0,
                 diff: diff,
+                diffSource: comparison?.label,
+                previousHosts: currentIPs,
               );
             },
             onError: (e) {
@@ -197,15 +213,38 @@ class ScanNotifier extends Notifier<ScanState> {
       timestamp: DateTime.now(),
     );
     await HiveService.saveScanSnapshot(snapshot);
-    state = state.copyWith(baseline: snapshot, clearDiff: true);
+    state = state.copyWith(
+      baseline: snapshot,
+      diffSource: 'saved baseline',
+      clearDiff: true,
+    );
   }
 
   void loadBaseline(ScanSnapshot snapshot) {
-    state = state.copyWith(baseline: snapshot);
+    state = state.copyWith(
+      baseline: snapshot,
+      diffSource: 'saved baseline',
+      diff: state.hosts.isEmpty
+          ? null
+          : _computeDiff(
+              state.hosts.map((h) => h.ip).toList(),
+              snapshot.hosts,
+            ),
+    );
   }
 
   void clearBaseline() {
     state = state.copyWith(clearBaseline: true, clearDiff: true);
+  }
+
+  ({List<String> hosts, String label})? _comparisonHosts() {
+    if (state.baseline != null) {
+      return (hosts: state.baseline!.hosts, label: 'saved baseline');
+    }
+    if (state.previousHosts != null && state.previousHosts!.isNotEmpty) {
+      return (hosts: state.previousHosts!, label: 'previous scan');
+    }
+    return null;
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -238,10 +277,9 @@ class ScanNotifier extends Notifier<ScanState> {
     return cleaned;
   }
 
-  ScanDiff? _computeDiff(List<ScanResult> current, ScanSnapshot? baseline) {
-    if (baseline == null) return null;
-    final currentIPs = current.map((h) => h.ip).toSet();
-    final baselineIPs = baseline.hosts.toSet();
+  ScanDiff? _computeDiff(List<String> current, List<String> baseline) {
+    final currentIPs = current.toSet();
+    final baselineIPs = baseline.toSet();
     return ScanDiff(
       currentIPs.difference(baselineIPs).toList()..sort(),
       baselineIPs.difference(currentIPs).toList()..sort(),
@@ -290,8 +328,7 @@ class ScanNotifier extends Notifier<ScanState> {
   }
 }
 
-final scanProvider =
-    NotifierProvider.autoDispose<ScanNotifier, ScanState>(ScanNotifier.new);
+final scanProvider = NotifierProvider<ScanNotifier, ScanState>(ScanNotifier.new);
 
 final snapshotListProvider = Provider.autoDispose<List<ScanSnapshot>>(
   (ref) => HiveService.getAllSnapshots(),
