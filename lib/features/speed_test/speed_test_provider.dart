@@ -5,13 +5,8 @@ import 'speed_result.dart';
 
 enum SpeedTestStatus { idle, testingDownload, testingUpload, done, error }
 
-/// fast = built-in HTTP test (fast.com servers)
-/// ookla = opens speedtest.net in the browser (handled in the UI layer)
-enum SpeedProvider { fast, ookla }
-
 class SpeedTestState {
   final SpeedTestStatus status;
-  final SpeedProvider provider;
   final double downloadMbps;
   final double uploadMbps;
   final double progress;
@@ -20,7 +15,6 @@ class SpeedTestState {
 
   const SpeedTestState({
     this.status = SpeedTestStatus.idle,
-    this.provider = SpeedProvider.fast,
     this.downloadMbps = 0,
     this.uploadMbps = 0,
     this.progress = 0,
@@ -30,7 +24,6 @@ class SpeedTestState {
 
   SpeedTestState copyWith({
     SpeedTestStatus? status,
-    SpeedProvider? provider,
     double? downloadMbps,
     double? uploadMbps,
     double? progress,
@@ -39,7 +32,6 @@ class SpeedTestState {
   }) {
     return SpeedTestState(
       status: status ?? this.status,
-      provider: provider ?? this.provider,
       downloadMbps: downloadMbps ?? this.downloadMbps,
       uploadMbps: uploadMbps ?? this.uploadMbps,
       progress: progress ?? this.progress,
@@ -57,18 +49,11 @@ class SpeedTestNotifier extends Notifier<SpeedTestState> {
     return SpeedTestState(history: HiveService.getAllSpeedResults());
   }
 
-  void setProvider(SpeedProvider p) {
-    state = state.copyWith(provider: p);
-  }
-
-  /// Only called for the fast.com built-in test.
-  /// For Ookla, the UI layer launches the browser directly.
-  Future<void> startFastTest() async {
+  Future<void> startTest() async {
     if (_speedTest.isTestInProgress()) return;
 
     state = SpeedTestState(
       status: SpeedTestStatus.testingDownload,
-      provider: state.provider,
       history: state.history,
     );
 
@@ -132,10 +117,7 @@ class SpeedTestNotifier extends Notifier<SpeedTestState> {
   }
 
   void reset() {
-    state = SpeedTestState(
-      provider: state.provider,
-      history: state.history,
-    );
+    state = SpeedTestState(history: state.history);
   }
 }
 

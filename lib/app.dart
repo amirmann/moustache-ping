@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'features/network_info/network_info_screen.dart';
 import 'features/ping/ping_screen.dart';
 import 'features/subnet_scan/scan_screen.dart';
 import 'features/speed_test/speed_test_screen.dart';
@@ -32,6 +33,7 @@ class _ShellState extends State<_Shell> {
     PingScreen(),
     ScanScreen(),
     SpeedTestScreen(),
+    NetworkInfoScreen(),
   ];
 
   @override
@@ -53,6 +55,10 @@ class _ShellState extends State<_Shell> {
           NavigationDestination(
             icon: Icon(Icons.speed_rounded),
             label: 'Speed',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.info_outline_rounded),
+            label: 'Info',
           ),
         ],
       ),

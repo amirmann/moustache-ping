@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../shared/widgets/moustache_header.dart';
 import 'speed_test_provider.dart';
 import 'speed_result.dart';
@@ -23,35 +22,32 @@ class SpeedTestScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _ProviderToggle(
-              selected: state.provider,
-              enabled: !isRunning,
-              onChanged: (p) => ref.read(speedTestProvider.notifier).setProvider(p),
-            ),
-            const SizedBox(height: 8),
-            if (state.provider == SpeedProvider.ookla)
-              _OoklaCard(isRunning: isRunning)
-            else ...[
-              const SizedBox(height: 16),
-              _SpeedDial(state: state),
-              const SizedBox(height: 24),
-              _Controls(
-                isRunning: isRunning,
-                isDone: state.status == SpeedTestStatus.done,
-                onStart: () => ref.read(speedTestProvider.notifier).startFastTest(),
-                onCancel: () => ref.read(speedTestProvider.notifier).cancel(),
-                onReset: () => ref.read(speedTestProvider.notifier).reset(),
+            Text(
+              'Powered by fast.com',
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.5),
+                fontSize: 12,
               ),
-              if (state.status == SpeedTestStatus.error)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    state.error ?? 'Unknown error',
-                    style: TextStyle(color: cs.error),
-                    textAlign: TextAlign.center,
-                  ),
+            ),
+            const SizedBox(height: 16),
+            _SpeedDial(state: state),
+            const SizedBox(height: 24),
+            _Controls(
+              isRunning: isRunning,
+              isDone: state.status == SpeedTestStatus.done,
+              onStart: () => ref.read(speedTestProvider.notifier).startTest(),
+              onCancel: () => ref.read(speedTestProvider.notifier).cancel(),
+              onReset: () => ref.read(speedTestProvider.notifier).reset(),
+            ),
+            if (state.status == SpeedTestStatus.error)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  state.error ?? 'Unknown error',
+                  style: TextStyle(color: cs.error),
+                  textAlign: TextAlign.center,
                 ),
-            ],
+              ),
             const SizedBox(height: 24),
             if (state.history.isNotEmpty) ...[
               const Align(
@@ -65,81 +61,6 @@ class SpeedTestScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _OoklaCard extends StatelessWidget {
-  const _OoklaCard({required this.isRunning});
-  final bool isRunning;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Icon(Icons.open_in_browser_rounded, size: 48, color: cs.primary),
-            const SizedBox(height: 12),
-            const Text(
-              'Ookla Speedtest',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Opens the official Ookla Speedtest website in your browser for an accurate, certified measurement.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6), fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => launchUrl(
-                Uri.parse('https://www.speedtest.net'),
-                mode: LaunchMode.externalApplication,
-              ),
-              icon: const Icon(Icons.speed_rounded),
-              label: const Text('Open Speedtest.net'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProviderToggle extends StatelessWidget {
-  const _ProviderToggle({
-    required this.selected,
-    required this.enabled,
-    required this.onChanged,
-  });
-  final SpeedProvider selected;
-  final bool enabled;
-  final ValueChanged<SpeedProvider> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text('Provider: '),
-        const SizedBox(width: 8),
-        SegmentedButton<SpeedProvider>(
-          selected: {selected},
-          onSelectionChanged: enabled ? (s) => onChanged(s.first) : null,
-          segments: const [
-            ButtonSegment(value: SpeedProvider.fast, label: Text('fast.com')),
-            ButtonSegment(value: SpeedProvider.ookla, label: Text('Ookla')),
-          ],
-          style: SegmentedButton.styleFrom(
-            selectedBackgroundColor: cs.primary,
-            selectedForegroundColor: cs.onPrimary,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -14,14 +14,21 @@ A network utility Android app built with Flutter.
 - Auto-detects your current WiFi subnet (e.g. `192.168.1`)
 - Editable subnet field — override with any subnet you like
 - Concurrent ICMP scan of all 254 hosts
+- Reverse-DNS hostname discovery (shown when the network provides PTR records)
 - **Before/After diff**: save a scan as a baseline, plug or unplug a device, rescan, and see exactly which devices were added or removed (highlighted green/red)
 - Persistent baseline history stored locally
 
 ### 3. Speed Test
-- Toggle between **fast.com-style** and **Ookla-style** tests
+- In-app speed test via **fast.com** servers
 - Animated speed dial showing live download/upload progress
 - Results: Download Mbps, Upload Mbps
-- History of past tests with timestamp and provider
+- History of past tests with timestamp
+
+### 4. Network Info
+- WiFi and Cellular sections with connection status
+- WiFi: SSID, BSSID, IP, subnet mask, gateway, DNS, broadcast, IPv6
+- Cellular: network type, IP (when on mobile data), DNS
+- Refresh button; location permission requested for SSID on Android 10+
 
 ## Tech Stack
 

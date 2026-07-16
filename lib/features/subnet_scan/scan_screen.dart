@@ -355,9 +355,12 @@ class _HostList extends StatelessWidget {
                         size: 18,
                         color: isNew ? Colors.greenAccent[400] : cs.primary,
                       ),
-                      title: Text(host.ip, style: const TextStyle(fontSize: 14)),
-                      subtitle: host.hostname != null && host.hostname!.isNotEmpty
-                          ? Text(host.hostname!, style: const TextStyle(fontSize: 11))
+                      title: Text(
+                        host.hostname?.isNotEmpty == true ? host.hostname! : host.ip,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      subtitle: host.hostname?.isNotEmpty == true
+                          ? Text(host.ip, style: const TextStyle(fontSize: 11))
                           : null,
                       trailing: isNew
                           ? Chip(

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class MoustacheHeader extends StatelessWidget implements PreferredSizeWidget {
-  const MoustacheHeader({super.key, required this.title});
+  const MoustacheHeader({super.key, required this.title, this.actions});
 
   final String title;
+  final List<Widget>? actions;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -19,6 +20,7 @@ class MoustacheHeader extends StatelessWidget implements PreferredSizeWidget {
           Text(title),
         ],
       ),
+      actions: actions,
     );
   }
 }

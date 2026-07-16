@@ -150,8 +150,17 @@ class ScanNotifier extends Notifier<ScanState> {
           .listen(
             (host) {
               final ip = host.internetAddress.address;
+              final index = hosts.length;
+              // Show IP immediately, then fill in hostname when reverse DNS returns.
               hosts.add(ScanResult(ip));
               state = state.copyWith(hosts: List.from(hosts));
+              _resolveHostname(host, ip).then((name) {
+                if (name == null || !ref.mounted) return;
+                if (index < hosts.length && hosts[index].ip == ip) {
+                  hosts[index] = ScanResult(ip, hostname: name);
+                  state = state.copyWith(hosts: List.from(hosts));
+                }
+              });
             },
             onDone: () {
               final diff = _computeDiff(hosts, state.baseline);
@@ -200,6 +209,34 @@ class ScanNotifier extends Notifier<ScanState> {
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
+
+  /// Prefer reverse-DNS hostname; fall back to deviceName when useful.
+  Future<String?> _resolveHostname(ActiveHost host, String ip) async {
+    try {
+      var name = await host.hostName;
+      name = _cleanHostname(name, ip);
+      if (name != null) return name;
+
+      final device = await host.deviceName;
+      return _cleanHostname(device, ip);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _cleanHostname(String? name, String ip) {
+    if (name == null) return null;
+    var cleaned = name.trim();
+    if (cleaned.endsWith('.')) {
+      cleaned = cleaned.substring(0, cleaned.length - 1);
+    }
+    if (cleaned.isEmpty ||
+        cleaned == ip ||
+        cleaned == ActiveHost.generic) {
+      return null;
+    }
+    return cleaned;
+  }
 
   ScanDiff? _computeDiff(List<ScanResult> current, ScanSnapshot? baseline) {
     if (baseline == null) return null;
