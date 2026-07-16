@@ -14,8 +14,8 @@ class ScanResult {
 }
 
 class ScanDiff {
-  final List<String> added;
-  final List<String> removed;
+  final List<ScanResult> added;
+  final List<ScanResult> removed;
   ScanDiff(this.added, this.removed);
 }
 
@@ -52,7 +52,7 @@ class ScanState {
   final String cidr;
   final List<ScanResult> hosts;
   final ScanSnapshot? baseline;
-  final List<String>? previousHosts;
+  final List<ScanResult>? previousHosts;
   final String? diffSource;
   final ScanDiff? diff;
   final double progress;
@@ -75,7 +75,7 @@ class ScanState {
     String? cidr,
     List<ScanResult>? hosts,
     ScanSnapshot? baseline,
-    List<String>? previousHosts,
+    List<ScanResult>? previousHosts,
     String? diffSource,
     ScanDiff? diff,
     double? progress,
@@ -168,23 +168,23 @@ class ScanNotifier extends Notifier<ScanState> {
                 if (name == null || !ref.mounted) return;
                 if (index < hosts.length && hosts[index].ip == ip) {
                   hosts[index] = ScanResult(ip, hostname: name);
-                  state = state.copyWith(hosts: List.from(hosts));
                 }
+                _applyHostname(ip, name);
               });
             },
             onDone: () {
-              final currentIPs = hosts.map((h) => h.ip).toList();
+              final currentHosts = List<ScanResult>.from(hosts);
               final comparison = _comparisonHosts();
               final diff = comparison == null
                   ? null
-                  : _computeDiff(currentIPs, comparison.hosts);
+                  : _computeDiff(currentHosts, comparison.hosts);
               state = state.copyWith(
                 status: ScanStatus.done,
-                hosts: List.from(hosts),
+                hosts: currentHosts,
                 progress: 1.0,
                 diff: diff,
                 diffSource: comparison?.label,
-                previousHosts: currentIPs,
+                previousHosts: currentHosts,
               );
             },
             onError: (e) {
@@ -227,8 +227,8 @@ class ScanNotifier extends Notifier<ScanState> {
       diff: state.hosts.isEmpty
           ? null
           : _computeDiff(
-              state.hosts.map((h) => h.ip).toList(),
-              snapshot.hosts,
+              state.hosts,
+              snapshot.hosts.map((ip) => ScanResult(ip)).toList(),
             ),
     );
   }
@@ -237,14 +237,50 @@ class ScanNotifier extends Notifier<ScanState> {
     state = state.copyWith(clearBaseline: true, clearDiff: true);
   }
 
-  ({List<String> hosts, String label})? _comparisonHosts() {
+  ({List<ScanResult> hosts, String label})? _comparisonHosts() {
     if (state.baseline != null) {
-      return (hosts: state.baseline!.hosts, label: 'saved baseline');
+      return (
+        hosts: state.baseline!.hosts.map((ip) => ScanResult(ip)).toList(),
+        label: 'saved baseline',
+      );
     }
     if (state.previousHosts != null && state.previousHosts!.isNotEmpty) {
       return (hosts: state.previousHosts!, label: 'previous scan');
     }
     return null;
+  }
+
+  /// Keep hostnames in the live host list, previous-scan snapshot, and diff.
+  void _applyHostname(String ip, String name) {
+    List<ScanResult>? updateList(List<ScanResult>? list) {
+      if (list == null) return null;
+      final i = list.indexWhere((h) => h.ip == ip);
+      if (i < 0) return null;
+      final updated = List<ScanResult>.from(list);
+      updated[i] = ScanResult(ip, hostname: name);
+      return updated;
+    }
+
+    final updatedHosts = updateList(state.hosts) ?? state.hosts;
+    final updatedPrevious = updateList(state.previousHosts);
+
+    ScanDiff? updatedDiff = state.diff;
+    if (updatedDiff != null) {
+      final added = updateList(updatedDiff.added);
+      final removed = updateList(updatedDiff.removed);
+      if (added != null || removed != null) {
+        updatedDiff = ScanDiff(
+          added ?? updatedDiff.added,
+          removed ?? updatedDiff.removed,
+        );
+      }
+    }
+
+    state = state.copyWith(
+      hosts: updatedHosts,
+      previousHosts: updatedPrevious,
+      diff: updatedDiff,
+    );
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -277,13 +313,20 @@ class ScanNotifier extends Notifier<ScanState> {
     return cleaned;
   }
 
-  ScanDiff? _computeDiff(List<String> current, List<String> baseline) {
-    final currentIPs = current.toSet();
-    final baselineIPs = baseline.toSet();
-    return ScanDiff(
-      currentIPs.difference(baselineIPs).toList()..sort(),
-      baselineIPs.difference(currentIPs).toList()..sort(),
-    );
+  ScanDiff? _computeDiff(List<ScanResult> current, List<ScanResult> baseline) {
+    final currentByIp = {for (final h in current) h.ip: h};
+    final baselineByIp = {for (final h in baseline) h.ip: h};
+    final added = currentByIp.keys
+        .where((ip) => !baselineByIp.containsKey(ip))
+        .map((ip) => currentByIp[ip]!)
+        .toList()
+      ..sort((a, b) => a.ip.compareTo(b.ip));
+    final removed = baselineByIp.keys
+        .where((ip) => !currentByIp.containsKey(ip))
+        .map((ip) => baselineByIp[ip]!)
+        .toList()
+      ..sort((a, b) => a.ip.compareTo(b.ip));
+    return ScanDiff(added, removed);
   }
 
   /// Convert an IP + dotted-decimal mask into CIDR string.

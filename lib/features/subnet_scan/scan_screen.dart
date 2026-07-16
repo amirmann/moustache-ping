@@ -277,7 +277,7 @@ class _DiffCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              ...diff.added.map((ip) => _DiffRow(ip: ip, added: true)),
+              ...diff.added.map((host) => _DiffRow(host: host, added: true)),
             ],
             if (diff.removed.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -289,7 +289,7 @@ class _DiffCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              ...diff.removed.map((ip) => _DiffRow(ip: ip, added: false)),
+              ...diff.removed.map((host) => _DiffRow(host: host, added: false)),
             ],
           ],
         ),
@@ -299,24 +299,47 @@ class _DiffCard extends StatelessWidget {
 }
 
 class _DiffRow extends StatelessWidget {
-  const _DiffRow({required this.ip, required this.added});
-  final String ip;
+  const _DiffRow({required this.host, required this.added});
+  final ScanResult host;
   final bool added;
 
   @override
   Widget build(BuildContext context) {
     final color = added ? Colors.greenAccent[400]! : Colors.redAccent[400]!;
+    final hasName = host.hostname?.isNotEmpty == true;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            added ? Icons.add_circle_rounded : Icons.remove_circle_rounded,
-            size: 14,
-            color: color,
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              added ? Icons.add_circle_rounded : Icons.remove_circle_rounded,
+              size: 14,
+              color: color,
+            ),
           ),
           const SizedBox(width: 8),
-          Text(ip, style: TextStyle(color: color, fontSize: 13)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasName ? host.hostname! : host.ip,
+                  style: TextStyle(color: color, fontSize: 13),
+                ),
+                if (hasName)
+                  Text(
+                    host.ip,
+                    style: TextStyle(
+                      color: color.withValues(alpha: 0.7),
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -401,7 +424,8 @@ class _HostList extends StatelessWidget {
                   itemCount: state.hosts.length,
                   itemBuilder: (ctx, i) {
                     final host = state.hosts[i];
-                    final isNew = state.diff?.added.contains(host.ip) ?? false;
+                    final isNew =
+                        state.diff?.added.any((h) => h.ip == host.ip) ?? false;
                     return ListTile(
                       dense: true,
                       leading: Icon(
