@@ -538,7 +538,8 @@ class _HostList extends StatelessWidget {
                               labelStyle: TextStyle(
                                 fontSize: 10,
                                 color: _diffColor(context, added: true),
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Roboto',
                               ),
                               padding: EdgeInsets.zero,
                             )

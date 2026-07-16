@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moustache_ping/features/network_info/network_info_provider.dart';
@@ -21,6 +23,9 @@ import 'package:moustache_ping/theme/app_theme.dart';
 /// Uses **fictional demo data only** (DemoNet, 192.168.1.x, 2001:db8::/32).
 /// Never includes real SSIDs, BSSIDs, or personal network details.
 ///
+/// Fonts are loaded from [test/fonts] so text/icons render (headless Linux
+/// otherwise draws empty tofu rectangles).
+///
 /// Generate / refresh PNGs:
 ///   ./tool/capture_screenshots.sh
 ///   # or:
@@ -31,6 +36,10 @@ import 'package:moustache_ping/theme/app_theme.dart';
 ///   docs/screenshots/dark/*.png
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await _loadScreenshotFonts();
+  });
 
   const phone = Size(420, 912);
 
@@ -61,6 +70,9 @@ void main() {
 
           Directory('docs/screenshots/$themeName').createSync(recursive: true);
 
+          final baseTheme = dark ? AppTheme.dark : AppTheme.light;
+          final themed = _screenshotTheme(baseTheme);
+
           await tester.pumpWidget(
             ProviderScope(
               overrides: [
@@ -75,9 +87,19 @@ void main() {
               ],
               child: MaterialApp(
                 debugShowCheckedModeBanner: false,
-                theme: AppTheme.light,
-                darkTheme: AppTheme.dark,
+                theme: themed,
+                darkTheme: themed,
                 themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+                builder: (context, child) {
+                  return DefaultTextStyle(
+                    style: const TextStyle(
+                      fontFamily: 'ScreenshotSans',
+                      fontWeight: FontWeight.w400,
+                      decoration: TextDecoration.none,
+                    ),
+                    child: child ?? const SizedBox.shrink(),
+                  );
+                },
                 home: MediaQuery(
                   data: const MediaQueryData(
                     size: phone,
@@ -130,7 +152,9 @@ void main() {
             } else if (entry.key == '02-scan') {
               await tester.enterText(fields.first, '192.168.1.0/24');
             }
+            FocusManager.instance.primaryFocus?.unfocus();
             await tester.pump();
+            await tester.pump(const Duration(milliseconds: 100));
           }
 
           await expectLater(
@@ -144,6 +168,118 @@ void main() {
       );
     }
   }
+}
+
+/// Load a dedicated screenshot font family (avoids empty system "Roboto").
+///
+/// AppBar/button styles that request bold weights are mapped onto this single
+/// Regular face via [_screenshotTheme] so glyphs never become tofu boxes.
+Future<void> _loadScreenshotFonts() async {
+  Future<ByteData> bytes(String path) async {
+    final data = await File(path).readAsBytes();
+    return ByteData.sublistView(Uint8List.fromList(data));
+  }
+
+  // Register each face; the TTF OS/2 weight table selects the right file.
+  const family = 'ScreenshotSans';
+  for (final path in [
+    'assets/fonts/Roboto-Regular.ttf',
+    'assets/fonts/Roboto-Medium.ttf',
+    'assets/fonts/Roboto-Bold.ttf',
+  ]) {
+    final loader = FontLoader(family)..addFont(bytes(path));
+    await loader.load();
+  }
+
+  final icons = FontLoader('MaterialIcons')
+    ..addFont(bytes('assets/fonts/MaterialIcons-Regular.otf'));
+  await icons.load();
+}
+
+/// Theme tuned for headless goldens: one loaded face, every style uses it.
+ThemeData _screenshotTheme(ThemeData base) {
+  const family = 'ScreenshotSans';
+
+  TextStyle regularize(TextStyle? style) {
+    final baseStyle = style ?? const TextStyle();
+    return baseStyle.copyWith(
+      fontFamily: family,
+      fontWeight: FontWeight.w400,
+      fontFamilyFallback: const [family],
+      // Prevent "bold" synthesis from selecting a missing face.
+      fontVariations: const [],
+    );
+  }
+
+  TextTheme regularizeTheme(TextTheme theme) => TextTheme(
+        displayLarge: regularize(theme.displayLarge),
+        displayMedium: regularize(theme.displayMedium),
+        displaySmall: regularize(theme.displaySmall),
+        headlineLarge: regularize(theme.headlineLarge),
+        headlineMedium: regularize(theme.headlineMedium),
+        headlineSmall: regularize(theme.headlineSmall),
+        titleLarge: regularize(theme.titleLarge),
+        titleMedium: regularize(theme.titleMedium),
+        titleSmall: regularize(theme.titleSmall),
+        bodyLarge: regularize(theme.bodyLarge),
+        bodyMedium: regularize(theme.bodyMedium),
+        bodySmall: regularize(theme.bodySmall),
+        labelLarge: regularize(theme.labelLarge),
+        labelMedium: regularize(theme.labelMedium),
+        labelSmall: regularize(theme.labelSmall),
+      );
+
+  return base.copyWith(
+    textTheme: regularizeTheme(base.textTheme),
+    primaryTextTheme: regularizeTheme(base.primaryTextTheme),
+    appBarTheme: base.appBarTheme.copyWith(
+      titleTextStyle: regularize(base.appBarTheme.titleTextStyle).copyWith(
+            fontSize: 20,
+            color: base.appBarTheme.titleTextStyle?.color ??
+                base.colorScheme.onSurface,
+          ),
+      toolbarTextStyle: regularize(base.appBarTheme.toolbarTextStyle),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: base.colorScheme.primary,
+        foregroundColor: base.colorScheme.onPrimary,
+        textStyle: const TextStyle(
+          fontFamily: family,
+          fontWeight: FontWeight.w400,
+          fontSize: 15,
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: base.colorScheme.primary,
+        textStyle: const TextStyle(
+          fontFamily: family,
+          fontWeight: FontWeight.w400,
+          fontSize: 14,
+        ),
+      ),
+    ),
+    chipTheme: base.chipTheme.copyWith(
+      labelStyle: regularize(base.chipTheme.labelStyle),
+    ),
+    navigationBarTheme: base.navigationBarTheme.copyWith(
+      labelTextStyle: const WidgetStatePropertyAll(
+        TextStyle(
+          fontFamily: family,
+          fontWeight: FontWeight.w400,
+          fontSize: 12,
+        ),
+      ),
+    ),
+    inputDecorationTheme: base.inputDecorationTheme.copyWith(
+      labelStyle: regularize(base.inputDecorationTheme.labelStyle),
+      hintStyle: regularize(base.inputDecorationTheme.hintStyle),
+      floatingLabelStyle:
+          regularize(base.inputDecorationTheme.floatingLabelStyle),
+    ),
+  );
 }
 
 int _navIndexFor(String name) {

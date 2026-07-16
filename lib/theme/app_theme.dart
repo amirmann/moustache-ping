@@ -38,6 +38,7 @@ class AppTheme {
           color: _navy,
           fontSize: 20,
           fontWeight: FontWeight.w700,
+          fontFamily: 'Roboto',
           letterSpacing: 0.5,
         ),
         iconTheme: IconThemeData(color: _amberDeep),
@@ -90,7 +91,11 @@ class AppTheme {
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            fontFamily: 'Roboto',
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -99,6 +104,7 @@ class AppTheme {
           side: const BorderSide(color: _amberDeep),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          textStyle: const TextStyle(fontFamily: 'Roboto'),
         ),
       ),
       switchTheme: SwitchThemeData(
@@ -146,6 +152,7 @@ class AppTheme {
           color: _amber,
           fontSize: 20,
           fontWeight: FontWeight.w700,
+          fontFamily: 'Roboto',
           letterSpacing: 0.5,
         ),
       ),
@@ -156,7 +163,11 @@ class AppTheme {
           IconThemeData(color: _darkOnSurface),
         ),
         labelTextStyle: const WidgetStatePropertyAll(
-          TextStyle(color: _darkOnSurface, fontSize: 12),
+          TextStyle(
+            color: _darkOnSurface,
+            fontSize: 12,
+            fontFamily: 'Roboto',
+          ),
         ),
       ),
       cardTheme: CardThemeData(
@@ -185,7 +196,11 @@ class AppTheme {
           foregroundColor: _navy,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            fontFamily: 'Roboto',
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -194,6 +209,7 @@ class AppTheme {
           side: const BorderSide(color: _amber),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          textStyle: const TextStyle(fontFamily: 'Roboto'),
         ),
       ),
       switchTheme: SwitchThemeData(
