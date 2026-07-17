@@ -44,6 +44,27 @@ class _NetworkInfoScreenState extends ConsumerState<NetworkInfoScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
+            if (state.wifiPermissionNote != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 18, color: cs.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          state.wifiPermissionNote!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (state.wifiPermissionNote != null) const SizedBox(height: 12),
             if (state.status == NetworkInfoStatus.error)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),

@@ -2,7 +2,7 @@ name: moustache_ping
 description: "Network utility app — ping, subnet scan, and speed test."
 publish_to: 'none'
 
-version: 1.0.12+13
+version: 1.0.13+14
 
 environment:
   sdk: ^3.12.2
@@ -29,7 +29,8 @@ dependencies:
   hive_ce: ^2.10.1
   hive_ce_flutter: ^2.2.0
 
-  # Utilities
+  # Permissions & utilities
+  permission_handler: ^12.0.0+1
   path_provider: ^2.1.5
   intl: ^0.20.2
 

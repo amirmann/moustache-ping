@@ -5,10 +5,16 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
-    <!-- Strip location permissions merged in by dependencies (SSID needs them;
-         we use LinkProperties for IP/CIDR and never request location). -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove"/>
+    <!-- Android 13+: Wi-Fi identity without treating the app as a location app. -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="33"/>
+    <!-- Android 12 and below: SSID/BSSID still require location. Kept for API 33+ as
+         fallback when Nearby Wi-Fi alone does not unmask WifiInfo.getSSID(). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Never request/track in background. -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove"/>
     <application
         android:label="Moustache Ping"

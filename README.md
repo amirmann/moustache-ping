@@ -55,7 +55,7 @@ Regenerate screenshots (fictional demo data):
 ### 4. Network Info
 - Separate WiFi and Cellular cards
 - IP, subnet, gateway, DNS (one per line), IPv6, broadcast
-- SSID/BSSID shown when Android provides them without location permission
+- SSID/BSSID via Nearby Wi-Fi Devices on Android 13+ (falls back to location only if needed)
 
 ### 5. Settings
 - Light theme by default
@@ -78,10 +78,12 @@ Regenerate screenshots (fictional demo data):
 
 ```xml
 INTERNET, ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE,
-CHANGE_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE
+CHANGE_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE,
+NEARBY_WIFI_DEVICES (neverForLocation),
+ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION
 ```
 
-No location permission. Subnet auto-detect uses WiFi IP + subnet mask (native `LinkProperties` / `network_info_plus`). SSID may be unavailable on some Android 10+ devices without location.
+SSID/BSSID: on Android 13+ the app requests **Nearby Wi-Fi Devices** first (not treated as location). If the OS still redacts the Wi-Fi name, it asks for **location when in use** only while Network Info is refreshing — not at every app launch, and never background location. Subnet auto-detect uses WiFi IP + subnet mask (native `LinkProperties`) and does not need location.
 
 ## Building
 

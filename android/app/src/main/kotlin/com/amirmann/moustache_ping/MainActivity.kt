@@ -1,8 +1,12 @@
 package com.amirmann.moustache_ping
 
+import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
+import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -24,6 +28,7 @@ class MainActivity : FlutterActivity() {
                         result.error("network_info_error", e.message, null)
                     }
                 }
+                "getSdkInt" -> result.success(Build.VERSION.SDK_INT)
                 else -> result.notImplemented()
             }
         }
@@ -47,13 +52,13 @@ class MainActivity : FlutterActivity() {
         cm.activeNetwork?.let { network ->
             val caps = cm.getNetworkCapabilities(network) ?: return@let
             val link = cm.getLinkProperties(network) ?: return@let
-            assign(caps, buildInterfaceInfo(link))
+            assign(caps, buildInterfaceInfo(link, caps))
         }
 
         for (network in cm.allNetworks) {
             val caps = cm.getNetworkCapabilities(network) ?: continue
             val link = cm.getLinkProperties(network) ?: continue
-            val info = buildInterfaceInfo(link)
+            val info = buildInterfaceInfo(link, caps)
 
             when {
                 (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
@@ -64,13 +69,74 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        // Fill SSID/BSSID from WifiManager when LinkProperties path had none
+        // (permissions may still redact to <unknown ssid> / 02:00:00:00:00:00).
+        wifi = enrichWifiIdentity(wifi)
+
         return mapOf(
             "wifi" to wifi,
             "cellular" to cellular,
         )
     }
 
-    private fun buildInterfaceInfo(link: LinkProperties): Map<String, Any?> {
+    private fun enrichWifiIdentity(wifi: Map<String, Any?>?): Map<String, Any?>? {
+        if (wifi == null) return null
+        val existingSsid = wifi["ssid"] as String?
+        val existingBssid = wifi["bssid"] as String?
+        if (!isUnknownSsid(existingSsid) && !isUnknownBssid(existingBssid)) return wifi
+
+        val fromManager = readWifiManagerIdentity()
+        val merged = wifi.toMutableMap()
+        if (isUnknownSsid(existingSsid) && !isUnknownSsid(fromManager.ssid)) {
+            merged["ssid"] = fromManager.ssid
+        }
+        if (isUnknownBssid(existingBssid) && !isUnknownBssid(fromManager.bssid)) {
+            merged["bssid"] = fromManager.bssid
+        }
+        return merged
+    }
+
+    private fun readWifiManagerIdentity(): PairSsid {
+        return try {
+            @Suppress("DEPRECATION")
+            val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            @Suppress("DEPRECATION")
+            val info = wm.connectionInfo
+            PairSsid(cleanSsid(info?.ssid), cleanBssid(info?.bssid))
+        } catch (_: Exception) {
+            PairSsid(null, null)
+        }
+    }
+
+    private data class PairSsid(val ssid: String?, val bssid: String?)
+
+    private fun isUnknownSsid(value: String?): Boolean {
+        if (value.isNullOrBlank()) return true
+        val v = value.trim().removeSurrounding("\"")
+        return v.isEmpty() || v == WifiManager.UNKNOWN_SSID || v == "<unknown ssid>"
+    }
+
+    private fun isUnknownBssid(value: String?): Boolean {
+        if (value.isNullOrBlank()) return true
+        val v = value.trim().lowercase()
+        return v == "02:00:00:00:00:00" || v == "00:00:00:00:00:00"
+    }
+
+    private fun cleanSsid(raw: String?): String? {
+        if (raw == null) return null
+        val cleaned = raw.trim().removeSurrounding("\"")
+        return if (isUnknownSsid(cleaned)) null else cleaned
+    }
+
+    private fun cleanBssid(raw: String?): String? {
+        if (raw == null) return null
+        return if (isUnknownBssid(raw)) null else raw.trim()
+    }
+
+    private fun buildInterfaceInfo(
+        link: LinkProperties,
+        caps: NetworkCapabilities? = null,
+    ): Map<String, Any?> {
         var ipv4: String? = null
         var ipv6: String? = null
         var subnetMask: String? = null
@@ -118,6 +184,14 @@ class MainActivity : FlutterActivity() {
         dnsList.sortWith(compareBy({ it.contains(':') }, { it }))
         val dnsServers = dnsList.distinct()
 
+        var ssid: String? = null
+        var bssid: String? = null
+        val transport = caps?.transportInfo
+        if (transport is WifiInfo) {
+            ssid = cleanSsid(transport.ssid)
+            bssid = cleanBssid(transport.bssid)
+        }
+
         return mapOf(
             "interfaceName" to link.interfaceName,
             "ipv4" to ipv4,
@@ -125,6 +199,8 @@ class MainActivity : FlutterActivity() {
             "subnetMask" to subnetMask,
             "gateway" to gateway,
             "dnsServers" to dnsServers.ifEmpty { null },
+            "ssid" to ssid,
+            "bssid" to bssid,
             "connected" to (ipv4 != null || ipv6 != null),
         )
     }

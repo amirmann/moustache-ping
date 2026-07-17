@@ -8,6 +8,8 @@ class NativeInterfaceInfo {
     this.subnetMask,
     this.gateway,
     this.dnsServers = const [],
+    this.ssid,
+    this.bssid,
     this.connected = false,
   });
 
@@ -17,6 +19,8 @@ class NativeInterfaceInfo {
   final String? subnetMask;
   final String? gateway;
   final List<String> dnsServers;
+  final String? ssid;
+  final String? bssid;
   final bool connected;
 
   factory NativeInterfaceInfo.fromMap(Map<dynamic, dynamic>? map) {
@@ -28,6 +32,8 @@ class NativeInterfaceInfo {
       subnetMask: map['subnetMask'] as String?,
       gateway: map['gateway'] as String?,
       dnsServers: _parseDns(map['dnsServers']),
+      ssid: map['ssid'] as String?,
+      bssid: map['bssid'] as String?,
       connected: map['connected'] == true,
     );
   }
@@ -66,5 +72,13 @@ class AndroidNetworkInfoBridge {
       wifi: NativeInterfaceInfo.fromMap(result?['wifi'] as Map<dynamic, dynamic>?),
       cellular: NativeInterfaceInfo.fromMap(result?['cellular'] as Map<dynamic, dynamic>?),
     );
+  }
+
+  static Future<int?> sdkInt() async {
+    try {
+      return await _channel.invokeMethod<int>('getSdkInt');
+    } catch (_) {
+      return null;
+    }
   }
 }
