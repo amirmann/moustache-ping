@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:network_info_plus/network_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'android_network_info.dart';
 
@@ -41,14 +40,12 @@ class DeviceNetworkInfoState {
   final NetworkInfoStatus status;
   final InterfaceInfo wifi;
   final InterfaceInfo cellular;
-  final String? locationNote;
   final String? error;
 
   const DeviceNetworkInfoState({
     this.status = NetworkInfoStatus.idle,
     this.wifi = const InterfaceInfo(label: 'WiFi'),
     this.cellular = const InterfaceInfo(label: 'Cellular'),
-    this.locationNote,
     this.error,
   });
 
@@ -56,14 +53,12 @@ class DeviceNetworkInfoState {
     NetworkInfoStatus? status,
     InterfaceInfo? wifi,
     InterfaceInfo? cellular,
-    String? locationNote,
     String? error,
   }) {
     return DeviceNetworkInfoState(
       status: status ?? this.status,
       wifi: wifi ?? this.wifi,
       cellular: cellular ?? this.cellular,
-      locationNote: locationNote,
       error: error,
     );
   }
@@ -80,7 +75,6 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
     state = state.copyWith(status: NetworkInfoStatus.loading, error: null);
 
     try {
-      final locationStatus = await _ensureLocationPermission();
       final connectivity = await _connectivity.checkConnectivity();
 
       NativeInterfaceInfo nativeWifi = const NativeInterfaceInfo();
@@ -100,7 +94,6 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
       final wifi = await _loadWifiInfo(
         connected: wifiConnected,
         native: nativeWifi,
-        locationGranted: locationStatus.granted,
       );
 
       final cellular = _loadCellularInfo(
@@ -113,7 +106,6 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
         status: NetworkInfoStatus.ready,
         wifi: wifi,
         cellular: cellular,
-        locationNote: locationStatus.note,
       );
     } catch (e) {
       state = state.copyWith(
@@ -123,34 +115,21 @@ class DeviceNetworkInfoNotifier extends Notifier<DeviceNetworkInfoState> {
     }
   }
 
-  Future<({bool granted, String? note})> _ensureLocationPermission() async {
-    var status = await Permission.locationWhenInUse.status;
-    if (status.isGranted) return (granted: true, note: null);
-
-    status = await Permission.locationWhenInUse.request();
-    if (status.isGranted) return (granted: true, note: null);
-
-    return (
-      granted: false,
-      note: 'Location permission is required on Android 10+ to read WiFi SSID/BSSID.',
-    );
-  }
-
   Future<InterfaceInfo> _loadWifiInfo({
     required bool connected,
     required NativeInterfaceInfo native,
-    required bool locationGranted,
   }) async {
+    // SSID/BSSID may be null without location permission on Android 10+;
+    // IP/mask/gateway still come from native LinkProperties (no location).
     final ssid = _cleanQuoted(await _networkInfo.getWifiName());
+    final bssid = await _networkInfo.getWifiBSSID();
 
     return InterfaceInfo(
       label: 'WiFi',
       connected: connected,
       networkType: connected ? 'WiFi' : 'Not connected',
-      ssid: locationGranted ? ssid : 'Permission required',
-      bssid: locationGranted
-          ? await _networkInfo.getWifiBSSID()
-          : 'Permission required',
+      ssid: ssid,
+      bssid: bssid,
       ipAddress: native.ipv4 ?? await _networkInfo.getWifiIP(),
       subnetMask: native.subnetMask ?? await _networkInfo.getWifiSubmask(),
       gateway: native.gateway ?? await _networkInfo.getWifiGatewayIP(),

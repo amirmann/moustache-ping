@@ -55,11 +55,12 @@ Regenerate screenshots (fictional demo data):
 ### 4. Network Info
 - Separate WiFi and Cellular cards
 - IP, subnet, gateway, DNS (one per line), IPv6, broadcast
-- Location permission requested for SSID on Android 10+
+- SSID/BSSID shown when Android provides them without location permission
 
 ### 5. Settings
 - Light theme by default
 - Dark theme toggle (persisted)
+- App version (marketing name only)
 
 ## Tech Stack
 
@@ -77,10 +78,10 @@ Regenerate screenshots (fictional demo data):
 
 ```xml
 INTERNET, ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE,
-ACCESS_FINE_LOCATION, CHANGE_WIFI_MULTICAST_STATE
+CHANGE_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE
 ```
 
-Location permission is required on Android 10+ to read the WiFi SSID for subnet auto-detection.
+No location permission. Subnet auto-detect uses WiFi IP + subnet mask (native `LinkProperties` / `network_info_plus`). SSID may be unavailable on some Android 10+ devices without location.
 
 ## Building
 

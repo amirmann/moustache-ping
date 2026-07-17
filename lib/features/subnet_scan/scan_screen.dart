@@ -248,44 +248,46 @@ class _SubnetInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (context, value, _) {
-                return TextField(
-                  controller: controller,
-                  enabled: !isScanning,
-                  onChanged: (_) => onEdited(),
-                  decoration: InputDecoration(
-                    labelText: 'Network (CIDR)',
-                    hintText: '192.168.1.0/24',
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (value.text.isNotEmpty && !isScanning)
-                          IconButton(
-                            icon: const Icon(Icons.clear_rounded),
-                            tooltip: 'Clear',
-                            onPressed: onClear,
-                          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              return TextField(
+                controller: controller,
+                enabled: !isScanning,
+                onChanged: (_) => onEdited(),
+                decoration: InputDecoration(
+                  labelText: 'Network (CIDR)',
+                  hintText: '192.168.1.0/24',
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (value.text.isNotEmpty && !isScanning)
                         IconButton(
-                          icon: const Icon(Icons.wifi_find_rounded),
-                          tooltip: 'Detect current WiFi network',
-                          onPressed: isScanning ? null : onDetect,
+                          icon: const Icon(Icons.clear_rounded),
+                          tooltip: 'Clear',
+                          onPressed: onClear,
                         ),
-                      ],
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.wifi_find_rounded),
+                        tooltip: 'Detect current WiFi network',
+                        onPressed: isScanning ? null : onDetect,
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-          const SizedBox(width: 8),
-          isScanning
-              ? OutlinedButton(onPressed: onStop, child: const Text('Stop'))
-              : ElevatedButton(onPressed: onScan, child: const Text('Scan')),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: isScanning
+                ? OutlinedButton(onPressed: onStop, child: const Text('Stop'))
+                : ElevatedButton(onPressed: onScan, child: const Text('Scan')),
+          ),
         ],
       ),
     );

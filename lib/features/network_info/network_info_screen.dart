@@ -44,25 +44,6 @@ class _NetworkInfoScreenState extends ConsumerState<NetworkInfoScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
-            if (state.locationNote != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          size: 18, color: cs.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          state.locationNote!,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             if (state.status == NetworkInfoStatus.error)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
