@@ -17,7 +17,6 @@ import 'package:moustache_ping/features/speed_test/speed_test_screen.dart';
 import 'package:moustache_ping/features/subnet_scan/scan_provider.dart';
 import 'package:moustache_ping/features/subnet_scan/scan_screen.dart';
 import 'package:moustache_ping/theme/app_theme.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 /// Captures phone screenshots for the GitHub README (light + dark).
 ///
@@ -39,13 +38,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    PackageInfo.setMockInitialValues(
-      appName: 'Moustache Ping',
-      packageName: 'com.amirmann.moustache_ping',
-      version: '1.0.10',
-      buildNumber: '11',
-      buildSignature: '',
-    );
     await _loadScreenshotFonts();
   });
 

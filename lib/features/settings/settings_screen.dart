@@ -1,40 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import '../../app_version.dart';
 import '../../shared/widgets/moustache_header.dart';
 import 'theme_settings_provider.dart';
 
-class SettingsScreen extends ConsumerStatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String _versionLabel = '…';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadVersion();
-  }
-
-  Future<void> _loadVersion() async {
-    try {
-      final info = await PackageInfo.fromPlatform();
-      if (!mounted) return;
-      setState(() {
-        _versionLabel = '${info.version} (${info.buildNumber})';
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _versionLabel = 'Unknown');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final darkMode = ref.watch(darkModeProvider);
     final cs = Theme.of(context).colorScheme;
 
@@ -68,12 +42,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             margin: EdgeInsets.zero,
             child: ListTile(
               leading: Icon(Icons.info_outline_rounded, color: cs.primary),
-              title: const Text('App version'),
+              title: const Text('Version'),
               subtitle: Text(
-                _versionLabel,
+                AppVersion.label,
                 style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface.withValues(alpha: 0.85),
                 ),
               ),
             ),

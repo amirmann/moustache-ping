@@ -16,6 +16,12 @@ class _PingScreenState extends ConsumerState<PingScreen> {
   bool _continuous = true;
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
@@ -31,6 +37,11 @@ class _PingScreenState extends ConsumerState<PingScreen> {
 
   void _stopPing() => ref.read(pingProvider.notifier).stop();
   void _reset() => ref.read(pingProvider.notifier).reset();
+
+  void _clearInput() {
+    _controller.clear();
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +73,7 @@ class _PingScreenState extends ConsumerState<PingScreen> {
             onStart: _startPing,
             onStop: _stopPing,
             onReset: _reset,
+            onClearInput: _clearInput,
           ),
           if (state.status != PingStatus.idle) ...[
             _SummaryBar(state: state),
@@ -95,6 +107,7 @@ class _InputBar extends StatelessWidget {
     required this.onStart,
     required this.onStop,
     required this.onReset,
+    required this.onClearInput,
   });
 
   final TextEditingController controller;
@@ -104,6 +117,7 @@ class _InputBar extends StatelessWidget {
   final VoidCallback onStart;
   final VoidCallback onStop;
   final VoidCallback onReset;
+  final VoidCallback onClearInput;
 
   @override
   Widget build(BuildContext context) {
@@ -112,17 +126,29 @@ class _InputBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: controller,
-            enabled: !isRunning,
-            decoration: const InputDecoration(
-              labelText: 'IP or Hostname',
-              hintText: '8.8.8.8 or google.com',
-              prefixIcon: Icon(Icons.computer_rounded),
-            ),
-            keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => isRunning ? onStop() : onStart(),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              return TextField(
+                controller: controller,
+                enabled: !isRunning,
+                decoration: InputDecoration(
+                  labelText: 'IP or Hostname',
+                  hintText: '8.8.8.8 or google.com',
+                  prefixIcon: const Icon(Icons.computer_rounded),
+                  suffixIcon: value.text.isNotEmpty && !isRunning
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          tooltip: 'Clear',
+                          onPressed: onClearInput,
+                        )
+                      : null,
+                ),
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => isRunning ? onStop() : onStart(),
+              );
+            },
           ),
           const SizedBox(height: 8),
           Row(
@@ -161,7 +187,7 @@ class _InputBar extends StatelessWidget {
               IconButton(
                 onPressed: isRunning ? null : onReset,
                 icon: const Icon(Icons.refresh_rounded),
-                tooltip: 'Clear',
+                tooltip: 'Clear results',
               ),
             ],
           ),

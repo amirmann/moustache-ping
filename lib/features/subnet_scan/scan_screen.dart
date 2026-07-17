@@ -93,11 +93,24 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     super.dispose();
   }
 
-  void _detectSubnet() async {
+  void _detectSubnet({bool fromUser = false}) async {
+    // WiFi button must always refill the field, even after the user cleared it.
+    if (fromUser) _cidrEdited = false;
     await ref.read(scanProvider.notifier).detectSubnet();
-    if (!_cidrEdited) {
-      _cidrCtrl.text = ref.read(scanProvider).cidr;
+    final cidr = ref.read(scanProvider).cidr;
+    if (!mounted) return;
+    if (cidr.isNotEmpty && (!_cidrEdited || fromUser)) {
+      _cidrCtrl.text = cidr;
+      _cidrEdited = false;
     }
+    setState(() {});
+  }
+
+  void _clearCidr() {
+    _cidrCtrl.clear();
+    _cidrEdited = true;
+    ref.read(scanProvider.notifier).setCidr('');
+    setState(() {});
   }
 
   void _startScan() {
@@ -125,8 +138,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _SubnetInput(
             controller: _cidrCtrl,
             isScanning: isScanning,
-            onEdited: () => _cidrEdited = true,
-            onDetect: _detectSubnet,
+            onEdited: () {
+              _cidrEdited = true;
+              setState(() {});
+            },
+            onClear: _clearCidr,
+            onDetect: () => _detectSubnet(fromUser: true),
             onScan: _startScan,
             onStop: () => ref.read(scanProvider.notifier).stopScan(),
           ),
@@ -213,6 +230,7 @@ class _SubnetInput extends StatelessWidget {
     required this.controller,
     required this.isScanning,
     required this.onEdited,
+    required this.onClear,
     required this.onDetect,
     required this.onScan,
     required this.onStop,
@@ -221,6 +239,7 @@ class _SubnetInput extends StatelessWidget {
   final TextEditingController controller;
   final bool isScanning;
   final VoidCallback onEdited;
+  final VoidCallback onClear;
   final VoidCallback onDetect;
   final VoidCallback onScan;
   final VoidCallback onStop;
@@ -232,19 +251,35 @@ class _SubnetInput extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: !isScanning,
-              onChanged: (_) => onEdited(),
-              decoration: InputDecoration(
-                labelText: 'Network (CIDR)',
-                hintText: '192.168.1.0/24',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.wifi_find_rounded),
-                  tooltip: 'Auto-detect',
-                  onPressed: isScanning ? null : onDetect,
-                ),
-              ),
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (context, value, _) {
+                return TextField(
+                  controller: controller,
+                  enabled: !isScanning,
+                  onChanged: (_) => onEdited(),
+                  decoration: InputDecoration(
+                    labelText: 'Network (CIDR)',
+                    hintText: '192.168.1.0/24',
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (value.text.isNotEmpty && !isScanning)
+                          IconButton(
+                            icon: const Icon(Icons.clear_rounded),
+                            tooltip: 'Clear',
+                            onPressed: onClear,
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.wifi_find_rounded),
+                          tooltip: 'Detect current WiFi network',
+                          onPressed: isScanning ? null : onDetect,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(width: 8),
